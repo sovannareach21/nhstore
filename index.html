@@ -752,38 +752,8 @@
                             font-size: 1.2em;
                         }
 
-                        /* Responsive adjustments for print page */
-                        @media (max-width: 768px) {
-                            .invoice-page {
-                                padding: 15px;
-                            }
-                            .header-section {
-                                flex-direction: column;
-                                align-items: center;
-                            }
-                            .logo-info {
-                                align-items: center;
-                            }
-                            .invoice-details-right {
-                                text-align: center;
-                                padding-top: 10px;
-                            }
-                            .qr-codes {
-                                flex-direction: column;
-                                gap: 10px;
-                            }
-                            .qr-codes img {
-                                max-width: 100px;
-                            }
-                            .signatures {
-                                flex-direction: column;
-                                align-items: center;
-                            }
-                            .signature-box {
-                                width: 80%;
-                                margin-bottom: 20px;
-                            }
-                        }
+                        /* --- บล็อก Responsive ถูกลบออกจากที่นี่ --- */
+
                     </style>
                 </head>
                 <body>
@@ -794,7 +764,7 @@
                                 <div class="company-details">
                                     <p>ឈ្មោះអតិថិជន: ${customerName || ' '}</p> 
                                     <p>អាសយដ្ឋាន: ${customerAddress || ' '}</p> 
-                                    <p>ទូរស័ព្ពទូរស័ព្ទលេខ: ${customerPhone || ' '}</p> 
+                                    <p>លេខទូរស័ព្ទអតិថិជន: ${customerPhone || ' '}</p> 
                                 </div>
                             </div>
                             <div class="invoice-details-right">
@@ -855,11 +825,11 @@
                                 </tr>
                                 <tr>
                                     <td colspan="4" style="text-align: right; padding-right: 20px;">កក់មុន/Deposit</td> 
-                                    <td style="text-align: center;">_________</td>
+                                    <td style="text-align: center;"></td>
                                 </tr>
                                 <tr>
                                     <td colspan="4" style="text-align: right; padding-right: 20px;">នៅខ្វះ/Balance</td> 
-                                    <td style="text-align: center;">_________</td>
+                                    <td style="text-align: center;"></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -897,6 +867,7 @@
             newWindow.document.write(invoiceContent);
             newWindow.document.close();
             // newWindow.print(); // Uncomment this line if you want to automatically trigger print dialog
+
         }
     </script>
 </body>
