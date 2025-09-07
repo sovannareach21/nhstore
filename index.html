@@ -325,7 +325,7 @@
         // មុខងារសម្រាប់បំប្លែងតម្លៃលេខទៅជាទ្រង់ទ្រាយរូបិយប័ណ្ណដែលចង់បាន
         function formatCurrency(amountInUsd, currency) {
             if (currency === 'USD') {
-                return '$' + parseFloat(amountInUsd).toFixed(0);
+                return '$' + parseFloat(amountInUsd).toFixed(2);
             } else if (currency === 'KHR') {
                 const amountInKhr = amountInUsd * USD_TO_KHR_RATE;
                 return formatNumberWithCommas(Math.round(amountInKhr)) + ' ៛';
