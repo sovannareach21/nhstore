@@ -159,7 +159,7 @@
             background-color: #e6f7ff;
         }
 
-        #totalAmount {
+        #totalAmount, #totalDeposit, #totalRemainingAmount {
             text-align: right;
             color: #007bff;
         }
@@ -192,29 +192,12 @@
             border: 1px solid #ccc;
         }
 
-        /* Responsive adjustments for Page 1 */
         @media (max-width: 768px) {
-            .invoice-container {
-                padding: 15px;
-            }
-            .customer-info-form, .item-entry {
-                grid-template-columns: 1fr;
-            }
-            .input-page-header {
-                flex-direction: column;
-                align-items: center;
-                text-align: center;
-            }
-            .input-page-header .company-info,
-            .input-page-header .company-details {
-                text-align: center;
-                align-items: center;
-                margin-right: 0;
-            }
-            .input-page-header .company-info img {
-                margin-right: 0;
-                margin-bottom: 10px;
-            }
+            .invoice-container { padding: 15px; }
+            .customer-info-form, .item-entry { grid-template-columns: 1fr; }
+            .input-page-header { flex-direction: column; align-items: center; text-align: center; }
+            .input-page-header .company-info, .input-page-header .company-details { text-align: center; align-items: center; }
+            .input-page-header .company-info img { margin-right: 0; margin-bottom: 10px; }
         }
     </style>
 </head>
@@ -269,6 +252,8 @@
                 <div>
                     <label for="unitPrice">តម្លៃរាយ:</label> 
                     <input type="number" id="unitPrice" min="0" step="0.01" value="0">
+                    <label>កក់មុន</label>
+                    <input type="number" id="deposit" min="0" step="0.01" value="0">
                 </div>
                 <button type="button" onclick="addItem()">បន្ថែមទំនិញ</button>
             </div>
@@ -282,18 +267,28 @@
                 <thead>
                     <tr>
                         <th style="width: 5%;">ល.រ</th>
-                        <th style="width: 40%;">ឈ្មោះទំនិញ</th>
-                        <th style="width: 15%;">ចំនួន</th>
-                        <th style="width: 20%;">តម្លៃរាយ</th>
-                        <th style="width: 20%;">តម្លៃសរុបរង</th>
+                        <th style="width: 30%;">ឈ្មោះទំនិញ</th>
+                        <th style="width: 10%;">ចំនួន</th>
+                        <th style="width: 15%;">តម្លៃរាយ</th>
+                        <th style="width: 15%;">សរុបរង</th>
+                        <th style="width: 10%;">កក់មុន</th>
+                        <th style="width: 15%;">នៅខ្វះ</th>
                     </tr>
                 </thead>
                 <tbody id="invoiceItems">
-                    </tbody>
+                </tbody>
                 <tfoot>
                     <tr>
                         <td colspan="4" style="text-align: right; padding-right: 20px;"><strong>សរុបទាំងអស់:</strong></td> 
-                        <td id="totalAmount">$0</td>
+                        <td id="totalAmount" colspan="3">$0.00</td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" style="text-align: right; padding-right: 20px;"><strong>សរុបកក់មុន:</strong></td> 
+                        <td id="totalDeposit" colspan="3">$0.00</td>
+                    </tr>
+                    <tr>    
+                        <td colspan="4" style="text-align: right; padding-right: 20px;"><strong>សរុបនៅខ្វះ:</strong></td> 
+                        <td id="totalRemainingAmount" colspan="3">$0.00</td>
                     </tr>
                 </tfoot>
             </table>
@@ -303,26 +298,23 @@
     </div>
 
     <script>
-        // JavaScript Codes (មុខងារគណនា)
-        let totalInvoiceAmount = 0; // រក្សាតម្លៃសរុបជា USD (base currency)
-        let invoiceItemsData = []; // អារេសម្រាប់ផ្ទុកទិន្នន័យទំនិញ
-        let currentCurrency = 'USD'; // Default currency សម្រាប់បង្ហាញ
+        let totalInvoiceAmount = 0; 
+        let totalDepositAmount = 0; // បន្ថែមថ្មីសម្រាប់រក្សាលុយកក់សរុប
+        let invoiceItemsData = []; 
+        let currentCurrency = 'USD'; 
 
-        const USD_TO_KHR_RATE = 4100; // អត្រាប្តូរប្រាក់ 1 ដុល្លារ = 4100 រៀល
+        const USD_TO_KHR_RATE = 4100; 
 
-        // មុខងារសម្រាប់បន្ថែមសញ្ញាក្បៀស (,) ក្នុងលេខធំ
         function formatNumberWithCommas(x) {
             return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         }
 
-        // មុខងារសម្រាប់ធ្វើបច្ចុប្បន្នភាពការបង្ហាញនៅពេលប្តូររូបិយប័ណ្ណ
         function updateCurrencySymbol() {
             currentCurrency = document.getElementById('currencySelect').value;
             renderInvoiceItems();
-            document.getElementById('totalAmount').textContent = formatCurrency(totalInvoiceAmount, currentCurrency);
+            updateTotalDisplays();
         }
 
-        // មុខងារសម្រាប់បំប្លែងតម្លៃលេខទៅជាទ្រង់ទ្រាយរូបិយប័ណ្ណដែលចង់បាន
         function formatCurrency(amountInUsd, currency) {
             if (currency === 'USD') {
                 return '$' + parseFloat(amountInUsd).toFixed(2);
@@ -333,70 +325,72 @@
             return parseFloat(amountInUsd).toFixed(2);
         }
 
-        // មុខងារសម្រាប់បង្ហាញรายการទំនិញក្នុងតារាង
         function renderInvoiceItems() {
             const tableBody = document.getElementById('invoiceItems');
             tableBody.innerHTML = ''; 
 
             invoiceItemsData.forEach((item, index) => {
                 const newRow = tableBody.insertRow();
-                const cell1 = newRow.insertCell(0);
-                const cell2 = newRow.insertCell(1);
-                const cell3 = newRow.insertCell(2);
-                const cell4 = newRow.insertCell(3);
-                const cell5 = newRow.insertCell(4);
-
-                cell1.textContent = index + 1;
-                cell2.textContent = item.name;
-                cell3.textContent = item.qty;
-                cell4.textContent = formatCurrency(item.priceInUsd, currentCurrency);
-                cell5.textContent = formatCurrency(item.totalInUsd, currentCurrency);
+                newRow.insertCell(0).textContent = index + 1;
+                newRow.insertCell(1).textContent = item.name;
+                newRow.insertCell(2).textContent = item.qty;
+                newRow.insertCell(3).textContent = formatCurrency(item.priceInUsd, currentCurrency);
+                newRow.insertCell(4).textContent = formatCurrency(item.totalInUsd, currentCurrency);
+                newRow.insertCell(5).textContent = formatCurrency(item.depositInUsd, currentCurrency);
+                newRow.insertCell(6).textContent = formatCurrency(item.remainingInUsd, currentCurrency);
             });
         }
 
-        // ✅ មុខងារ addItem ដែលបានកែតម្រូវ
+        function updateTotalDisplays() {
+            document.getElementById('totalAmount').textContent = formatCurrency(totalInvoiceAmount, currentCurrency);
+            document.getElementById('totalDeposit').textContent = formatCurrency(totalDepositAmount, currentCurrency);
+            document.getElementById('totalRemainingAmount').textContent = formatCurrency(totalInvoiceAmount - totalDepositAmount, currentCurrency);
+        }
+
         function addItem() {
             const itemNameInput = document.getElementById('itemName');
             const quantityInput = document.getElementById('quantity');
             const unitPriceInput = document.getElementById('unitPrice');
+            const depositInput = document.getElementById('deposit');
 
             const itemName = itemNameInput.value.trim();
             const quantity = parseFloat(quantityInput.value);
             const unitPriceEntered = parseFloat(unitPriceInput.value); 
+            const depositEntered = parseFloat(depositInput.value) || 0;
 
-            if (!itemName || isNaN(quantity) || isNaN(unitPriceEntered) || quantity <= 0 || unitPriceEntered < 0) {
-                alert('សូមបញ្ចូលព័ត៌មានទំនិញអោយបានត្រឹមត្រូវ (ឈ្មោះ, ចំនួន > 0, តម្លៃរាយ >= 0)!');
+            if (!itemName || isNaN(quantity) || isNaN(unitPriceEntered) || quantity <= 0) {
+                alert('សូមបញ្ចូលព័ត៌មានទំនិញអោយបានត្រឹមត្រូវ!');
                 return;
             }
 
-            let unitPriceInUsd;
-            if (currentCurrency === 'KHR') {
-                unitPriceInUsd = unitPriceEntered / USD_TO_KHR_RATE;
-            } else {
-                unitPriceInUsd = unitPriceEntered;
-            }
+            let unitPriceInUsd = (currentCurrency === 'KHR') ? unitPriceEntered / USD_TO_KHR_RATE : unitPriceEntered;
+            let depositInUsd = (currentCurrency === 'KHR') ? depositEntered / USD_TO_KHR_RATE : depositEntered;
 
             const itemTotalInUsd = quantity * unitPriceInUsd;
-            
+            const remainingInUsd = itemTotalInUsd - depositInUsd;
+
             totalInvoiceAmount += itemTotalInUsd;
+            totalDepositAmount += depositInUsd;
 
             invoiceItemsData.push({
                 name: itemName,
                 qty: quantity,
                 priceInUsd: unitPriceInUsd, 
-                totalInUsd: itemTotalInUsd 
+                totalInUsd: itemTotalInUsd,
+                depositInUsd: depositInUsd,
+                remainingInUsd: remainingInUsd
             });
 
             renderInvoiceItems();
-            document.getElementById('totalAmount').textContent = formatCurrency(totalInvoiceAmount, currentCurrency);
+            updateTotalDisplays();
 
             itemNameInput.value = '';
             quantityInput.value = '1';
             unitPriceInput.value = '0';
+            depositInput.value = '0';
             itemNameInput.focus();
         }
 
-        // មុខងារ generateInvoice គឺត្រឹមត្រូវហើយ
         function generateInvoice() {
             if (invoiceItemsData.length === 0) {
                 alert('សូមបន្ថែមទំនិញយ៉ាងហោចណាស់មួយមុខដើម្បីបង្កើតវិក័យប័ត្រ!');
@@ -407,195 +401,85 @@
             const customerAddress = document.getElementById('customerAddress').value;
             const customerPhone = document.getElementById('customerPhone').value;
             const currentDate = new Date().toLocaleDateString('km-KH', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            const displayTotal = formatCurrency(totalInvoiceAmount, currentCurrency);
             
-            const totalInUsdFormatted = formatCurrency(totalInvoiceAmount, 'USD');
-            const totalInKhrFormatted = formatCurrency(totalInvoiceAmount, 'KHR');
+            const displayTotal = formatCurrency(totalInvoiceAmount, currentCurrency);
+            const displayDeposit = formatCurrency(totalDepositAmount, currentCurrency);
+            const displayRemaining = formatCurrency(totalInvoiceAmount - totalDepositAmount, currentCurrency);
 
-            // កូដសម្រាប់បង្កើត HTML នៃទំព័រវិក័យប័ត្រ (Page 2)
             let invoiceContent = `
                 <!DOCTYPE html>
                 <html lang="km">
                 <head>
                     <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <title>វិក័យបត្រ - NH បោះអាហារ</title>
                     <link href="https://fonts.googleapis.com/css2?family=Khmer+OS+Battambang&display=swap" rel="stylesheet">
                     <style>
-                        /* CSS សម្រាប់ Page 2 (វិក័យប័ត្រដែលត្រូវបោះពុម្ព) */
-                        body {
-                            font-family: 'Khmer OS Siemreap', sans-serif;
-                            margin: 0; padding: 0; 
-                            background-color: #f8f8f8; display: flex;
-                            justify-content: center; font-size: 14px; 
-                        }
-                        .invoice-page {
-                            width: 210mm; min-height: 297mm; margin: 0 auto; 
-                            background-color: #fff; padding: 10mm 15mm;
-                            border: 1px solid #ddd; box-shadow: 0 0 10px rgba(0,0,0,0.1);
-                            box-sizing: border-box; position: relative; 
-                        }
-                        .header-section {
-                            display: flex; justify-content: space-between;
-                            align-items: flex-start; margin-bottom: 20px;
-                        }
-                        .logo-info { display: flex; flex-direction: column; align-items: flex-start; }
-                        .logo-info img {
-                            max-width: 150px; height: auto; margin-bottom: -5px;
-                            border-radius: 50%;  
-                        }
-                        .company-details { text-align: left; margin-top: -10px; }
-                        .company-details p { margin: 5px 0; font-size: 1.1em; text-align: left; }
-                        .invoice-details-right { text-align: right; padding-top: 50px; margin-top: 85px; }
-                        .invoice-details-right p { margin: 5px 0; font-size: 1.1em; }
-                        .invoice-title {
-                            text-align: center; font-size: 1.5em;
-                            margin-top: -30px; text-decoration: underline;
-                        }
-                        table { width: 100%; border-collapse: collapse; margin-top: -20px; }
-                        table th, table td { border: 1px solid #000; padding: 7px; text-align: left; }
-                        table th { background-color: #f2f2f2; font-weight: bold; text-align: center; }
-                        table td:nth-child(1) { text-align: center; }
-                        table td:nth-child(3), table td:nth-child(4), table td:nth-child(5) { text-align: center; }
-                        table tfoot td {
-                            font-size: 1.1em; font-weight: bold; background-color: #e6f7ff;
-                        }
-                        table tfoot td:last-child { text-align: center; }
-                        .payment-info {
-                            display: flex; flex-direction: column; align-items: center;
-                            margin-top: -20px; text-align: center;
-                        }
-                        .qr-codes { display: flex; justify-content: center; gap: 20px; margin-bottom: -10px; }
-                        .qr-codes img { max-width: 150px; height: auto; margin-top: 20px; }
-                        .aba-info { font-weight: bold; font-size: 1.1em; margin-bottom: -30px;  }
-                        .signatures {
-                            display: flex; justify-content: space-around;
-                            width: calc(100% - 30mm); position: absolute;
-                            left: 15mm; margin-top: -10px;  /* រុញ signature ឡើងលើ */
-                        }
-                        .signature-box { width: 45%; text-align: center; }
-                        .signature-line {
-                            border-top: 1px solid #000; margin-top: -30px;
-                            display: inline-block; width: 70%;
-                        }
-                        /* ✅ Style សម្រាប់ឃ្លា "សូមអរគុណ" */
-                        .thank-you {
-                            text-align: center; font-style: italic; color: #555;
-                            font-size: 1.2em; position: absolute;
-                            bottom: 130px; /* ដាក់នៅខាងក្រោមสุด */
-                            left: 0; right: 0; width: 100%;margin-top: -30px;
-                        }
-                        @media print {
-                            body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; }
-                            .invoice-page {
-                                border: none; box-shadow: none; margin: 0; padding: 10mm 15mm;
-                                width: 210mm; height: 297mm;
-                            }
-                        }
+                        body { font-family: 'Khmer OS Battambang', sans-serif; margin: 0; padding: 0; background-color: #f8f8f8; display: flex; justify-content: center; font-size: 14px; }
+                        .invoice-page { width: 210mm; min-height: 297mm; margin: 0 auto; background-color: #fff; padding: 10mm 15mm; border: 1px solid #ddd; box-sizing: border-box; position: relative; }
+                        .header-section { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+                        .logo-info img { max-width: 150px; border-radius: 50%; }
+                        .invoice-details-right { text-align: right; margin-top: 85px; }
+                        .invoice-title { text-align: center; font-size: 1.5em; text-decoration: underline; margin-top: -30px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        table th, table td { border: 1px solid #000; padding: 7px; text-align: center; }
+                        .payment-info { text-align: center; margin-top: 20px; }
+                        .qr-codes { display: flex; justify-content: center; gap: 20px; }
+                        .qr-codes img { max-width: 150px; }
+                        .signatures { display: flex; justify-content: space-around; margin-top: 50px; }
+                        .signature-line { border-top: 1px solid #000; display: inline-block; width: 70%; margin-top: 40px; }
+                        .thank-you { text-align: center; font-style: italic; margin-top: 50px; color: #555; }
                     </style>
                 </head>
                 <body>
                     <div class="invoice-page">
                         <div class="header-section">
                             <div class="logo-info">
-                                <img src="images/Logo.png" alt="Company Logo" onerror="this.onerror=null;this.src='https://placehold.co/150x150/cccccc/333333?text=Logo'">
-                                <div class="company-details">
-                                    <p>ឈ្មោះអតិថិជន: ${customerName || ' '}</p> 
-                                    <p>អាសយដ្ឋាន: ${customerAddress || ' '}</p> 
-                                    <p>ទូរស័ព្ទលេខ: ${customerPhone || ' '}</p> 
-                                </div>
+                                <img src="images/Logo.png" alt="Logo" onerror="this.src='https://placehold.co/150x150?text=Logo'">
+                                <p>ឈ្មោះអតិថិជន: ${customerName || ' '}</p> 
+                                <p>អាសយដ្ឋាន: ${customerAddress || ' '}</p> 
+                                <p>ទូរស័ព្ទលេខ: ${customerPhone || ' '}</p> 
                             </div>
                             <div class="invoice-details-right">
                                 <p>កាលបរិច្ឆេទ: ${currentDate}</p> 
-                                <p>លេខទំនាក់ទំនង: 010 90 72 71</p> 
-                                <p>016 661 138</p> 
+                                <p>លេខទំនាក់ទំនង: 010 90 72 71 / 016 661 138</p> 
                             </div>
                         </div>
-
                         <h2 class="invoice-title">វិក័យបត្រ / Invoice</h2> 
-
                         <table>
                             <thead>
                                 <tr>
-                                    <th style="width: 5%;">ល.រ</th> 
-                                    <th style="width: 40%;">មុខទំនិញ</th> 
-                                    <th style="width: 15%;">ចំនួន</th> 
-                                    <th style="width: 20%;">តម្លៃរាយ</th> 
-                                    <th style="width: 20%;">តម្លៃសរុប</th> 
+                                    <th>ល.រ</th><th>មុខទំនិញ</th><th>ចំនួន</th><th>តម្លៃរាយ</th><th>តម្លៃសរុប</th>
                                 </tr>
                             </thead>
                             <tbody>
-            `;
-
-            // បន្ថែមទិន្នន័យទំនិញ
-            invoiceItemsData.forEach((item, index) => {
-                invoiceContent += `
-                                <tr>
-                                    <td>${index + 1}</td>
-                                    <td>${item.name}</td>
-                                    <td>${item.qty}</td>
-                                    <td>${formatCurrency(item.priceInUsd, currentCurrency)}</td>
-                                    <td>${formatCurrency(item.totalInUsd, currentCurrency)}</td>
-                                </tr>
-                `;
-            });
-
-            // Add empty rows
-            const minRows = 5;
-            const remainingRows = minRows - invoiceItemsData.length;
-            if (remainingRows > 0) {
-                for (let i = 0; i < remainingRows; i++) {
-                    invoiceContent += `
-                                <tr>
-                                    <td>${invoiceItemsData.length + i + 1}</td>
-                                    <td></td><td></td><td></td><td></td>
-                                </tr>
-                    `;
-                }
-            }
-            
-            invoiceContent += `
+                                ${invoiceItemsData.map((item, index) => `
+                                    <tr>
+                                        <td>${index + 1}</td>
+                                        <td>${item.name}</td>
+                                        <td>${item.qty}</td>
+                                        <td>${formatCurrency(item.priceInUsd, currentCurrency)}</td>
+                                        <td>${formatCurrency(item.totalInUsd, currentCurrency)}</td>
+                                    </tr>
+                                `).join('')}
                             </tbody>
                             <tfoot>
-                                <tr>
-                                    <td colspan="4" style="text-align: right; padding-right: 20px;"><strong>តម្លៃសរុបទាំងអស់/Total</strong></td> 
-                                    <td style="text-align: center;"><strong>${displayTotal}</strong></td>
-                                </tr>
-                                <tr>
-                                    <td colspan="4" style="text-align: right; padding-right: 20px;">កក់មុន/Deposit</td> 
-                                    <td style="text-align: center;">_________</td>
-                                </tr>
-                                <tr>
-                                    <td colspan="4" style="text-align: right; padding-right: 20px;">នៅខ្វះ/Balance</td> 
-                                    <td style="text-align: center;">_________</td>
-                                </tr>
+                                <tr><td colspan="4" style="text-align: right;"><strong>តម្លៃសរុបទាំងអស់/Total</strong></td><td><strong>${displayTotal}</strong></td></tr>
+                                <tr><td colspan="4" style="text-align: right;">កក់មុន/Deposit</td><td><strong>${displayDeposit}</strong></td></tr>
+                                <tr><td colspan="4" style="text-align: right;">នៅខ្វះ/Balance</td><td><strong>${displayRemaining}</strong></td></tr>
                             </tfoot>
                         </table>
-
                         <div class="payment-info">
                             <div class="qr-codes">
-                                <img src="images/QR $.jpg" alt="QR Code USD" onerror="this.onerror=null;this.src='https://placehold.co/150x150/cccccc/333333?text=QR%20USD'"> 
-                                <img src="images/QR real.jpg" alt="QR Code KHR" onerror="this.onerror=null;this.src='https://placehold.co/150x150/cccccc/333333?text=QR%20KHR'">
+                                <img src="images/QR $.jpg" alt="QR" onerror="this.src='https://placehold.co/150x150?text=QR+USD'"> 
+                                <img src="images/QR real.jpg" alt="QR" onerror="this.src='https://placehold.co/150x150?text=QR+KHR'">
                             </div>
-                            <div class="aba-info">
-                                <p>ABA ឈ្មោះ HOUN NHAN</p> 
-                            </div>
+                            <p><strong>ABA: HOUN NHAN</strong></p>
                         </div>
-
                         <div class="signatures">
-                            <div class="signature-box">
-                                <p>អ្នកទិញ</p> 
-                                <span class="signature-line"></span>
-                            </div>
-                            <div class="signature-box">
-                                <p>អ្នកលក់</p> 
-                                <span class="signature-line"></span>
-                            </div>
+                            <div style="text-align:center"><p>អ្នកទិញ</p><span class="signature-line"></span></div>
+                            <div style="text-align:center"><p>អ្នកលក់</p><span class="signature-line"></span></div>
                         </div>
-                        
-                        <div class="thank-you">
-                            <p>សូមអរគុណ! សម្រាប់ការគាំទ្រ !!</p>
-                        </div>
+                        <p class="thank-you">សូមអរគុណ! សម្រាប់ការគាំទ្រ !!</p>
                     </div>
                 </body>
                 </html>
@@ -605,8 +489,6 @@
             if (newWindow) {
                 newWindow.document.write(invoiceContent);
                 newWindow.document.close();
-            } else {
-                alert('សូមអនុញ្ញាត Pop-ups សម្រាប់គេហទំព័រនេះ ដើម្បីបង្កើតវិក័យប័ត្រ!');
             }
         }
     </script>
